@@ -1,0 +1,85 @@
+# ============================================================
+# Multi-Asset Cross-Exchange Arbitrage Detection Platform
+# ============================================================
+
+# ---------- Environment & Secrets ----------
+# NEVER commit real credentials. Use .env.example for placeholders.
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ---------- Java / Gradle Build Outputs ----------
+build/
+target/
+out/
+.gradle/
+bin/
+*.class
+*.jar
+*.war
+
+# ---------- Node / Frontend ----------
+node_modules/
+dist/
+.next/
+*.lock
+package-lock.json
+
+# ---------- Compiled / Minified ----------
+*.min.js
+*.min.css
+*.pyc
+__pycache__/
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+.factorypath
+
+# ---------- Logs & Temp ----------
+logs/
+*.log
+tmp/
+temp/
+hs_err_pid*
+
+# ---------- Docker Volumes (Local Data) ----------
+docker-data/
+kafka-data/
+redis-data/
+timescaledb-data/
+grafana-data/
+prometheus-data/
+
+# ---------- OS Files ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Test Coverage Reports ----------
+coverage/
+htmlReport/
+jacoco/
+
+# ---------- Misc ----------
+*.bak
+*.tmp
+misc files/
+CLAUDE.md
+docs/
+Cross-Exchange-Arbitrage-Detector-Development-Plan.docx
+Development-Plan-Supplement-v1.1.docx
+Phase-7-NSE-BSE-Extension-Plan.docx
+.env.example
+.claudeignore
+.claude/

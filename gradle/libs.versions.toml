@@ -1,0 +1,87 @@
+# ============================================================
+# Multi-Asset Cross-Exchange Arbitrage Detection Platform
+# Centralized Dependency Version Catalog
+# ============================================================
+# Single source of truth for all dependency versions across modules.
+# Reference: https://docs.gradle.org/current/userguide/platforms.html
+# ============================================================
+
+[versions]
+# Core
+spring-boot = "3.4.4"
+java = "21"
+
+# Kafka
+spring-kafka = "3.3.4"
+
+# Redis
+# (managed by Spring Boot BOM)
+
+# Database
+flyway = "10.21.0"
+postgresql = "42.7.5"
+
+# Observability
+micrometer = "1.14.5"
+hdr-histogram = "2.2.2"
+
+# JSON
+jackson = "2.18.3"
+
+# Lombok
+lombok = "1.18.36"
+
+# Testing
+junit = "5.11.4"
+mockito = "5.15.2"
+testcontainers = "1.20.5"
+wiremock = "3.10.0"
+
+# Frontend (managed by npm, listed here for reference only)
+# react = "18.x"
+# vite = "5.x"
+# typescript = "5.x"
+# tailwindcss = "3.x"
+
+[libraries]
+# Spring Boot Starters
+spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-data-redis-reactive = { module = "org.springframework.boot:spring-boot-starter-data-redis-reactive" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+
+# Kafka
+spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka" }
+spring-kafka-test = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka" }
+
+# Database
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+
+# Observability
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
+hdr-histogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdr-histogram" }
+
+# JSON
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+
+# Lombok
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+
+# Testing
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version = "1.1.7" }

@@ -1,0 +1,11 @@
+# ============================================================
+# Multi-Asset Cross-Exchange Arbitrage Detection Platform
+# Application Configuration
+# ============================================================
+
+spring:
+  application:
+    name: arbitrage-detector
+
+server:
+  port: ${SERVER_PORT:8080}

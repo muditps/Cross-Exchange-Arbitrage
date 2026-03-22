@@ -1,0 +1,279 @@
+# ============================================================
+# Multi-Asset Cross-Exchange Arbitrage Detection Platform
+# Infrastructure Stack — Docker Compose
+# ============================================================
+# Starts ALL infrastructure services with one command:
+#   docker-compose up -d
+#
+# Services:
+#   kafka         — Message broker (KRaft mode, no Zookeeper)
+#   redis         — In-memory price state store
+#   timescaledb   — Time-series database for historical data
+#   prometheus    — Metrics collection (scrapes Spring Boot actuator)
+#   grafana       — Metrics visualisation dashboards
+#
+# All services use named volumes for data persistence across restarts.
+# ============================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # KAFKA — Message Broker (KRaft Mode)
+  # ──────────────────────────────────────────────────────────
+  # Kafka acts as the conveyor belt between pipeline stages:
+  #   Connectors → raw-ticks-{exchange} → Normaliser
+  #   Normaliser → normalised-ticks → Detector
+  #   Detector   → arbitrage-opportunities → Simulator/Dashboard
+  #
+  # KRaft mode eliminates the need for Zookeeper by using Kafka's
+  # own Raft-based consensus protocol for cluster coordination.
+  # This is the industry standard going forward — Zookeeper support
+  # is being deprecated.
+  #
+  # Two listeners are configured:
+  #   - INTERNAL (port 9092): for inter-container communication
+  #     (e.g., normaliser container talking to Kafka container)
+  #   - EXTERNAL (port 29092): for your Java app running on the host
+  #     machine (localhost) during development
+  # ──────────────────────────────────────────────────────────
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: arbitrage-kafka
+    ports:
+      - "9092:9092"     # Internal listener (container-to-container)
+      - "29092:29092"   # External listener (host machine access)
+    environment:
+      # ---- KRaft Mode Configuration ----
+      # KAFKA_NODE_ID: Unique ID for this broker node (single-node cluster)
+      KAFKA_NODE_ID: 1
+      # KAFKA_PROCESS_ROLES: This node acts as both the controller (manages
+      # metadata) and the broker (handles messages). In production, these
+      # would be separate nodes for fault tolerance.
+      KAFKA_PROCESS_ROLES: broker,controller
+      # KAFKA_CONTROLLER_QUORUM_VOTERS: The controller election quorum.
+      # Format: nodeId@host:port. Since we have one node, it votes for itself.
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # ---- Listener Configuration ----
+      # Three listeners serve different purposes:
+      #   PLAINTEXT (9092)  — containers inside Docker network use this
+      #   EXTERNAL (29092)  — your Java app on localhost uses this
+      #   CONTROLLER (9093) — internal Raft consensus protocol (never exposed)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # ---- Topic Defaults ----
+      # Single partition, single replica — appropriate for development.
+      # Production would use 3+ partitions and replication-factor=3.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # ---- Performance Tuning ----
+      # Log retention: default 24 hours for topics not explicitly configured.
+      # Individual topic retentions are set in the create-topics script.
+      KAFKA_LOG_RETENTION_HOURS: 24
+      # Log segment size: 100MB segments. Smaller segments = faster cleanup
+      # but more file handles. 100MB is a good balance for development.
+      KAFKA_LOG_SEGMENT_BYTES: 104857600
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      # Verify Kafka is ready by listing topics. If this command succeeds,
+      # the broker is up and accepting connections.
+      test: /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ──────────────────────────────────────────────────────────
+  # KAFKA TOPIC INITIALISER
+  # ──────────────────────────────────────────────────────────
+  # A one-shot container that creates all required Kafka topics
+  # with appropriate retention policies, then exits.
+  #
+  # Why a separate container? Kafka topics must exist before
+  # producers can write to them. This container waits for Kafka
+  # to be healthy, creates topics, and exits (restart: "no").
+  # ──────────────────────────────────────────────────────────
+  kafka-init:
+    image: apache/kafka:3.7.0
+    container_name: arbitrage-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/bash", "/tmp/create-topics.sh"]
+    volumes:
+      - ./infra/kafka/create-topics.sh:/tmp/create-topics.sh:ro
+
+  # ──────────────────────────────────────────────────────────
+  # REDIS 7 — In-Memory Price State Store
+  # ──────────────────────────────────────────────────────────
+  # Stores the latest price from each exchange for each trading pair.
+  # The detection engine reads from Redis to compare prices across
+  # exchanges and detect arbitrage opportunities.
+  #
+  # Key schema:
+  #   price:{exchange}:{pair} → Hash {bid, ask, bidQty, askQty, timestamp}
+  #   health:{exchange}:lastSeen → String (nanoTime of last message)
+  #
+  # Keys have a 10-second TTL — if a key expires, the price is
+  # stale by definition. This is "encoding business rules in your
+  # data structure" — no separate staleness timer needed for old data.
+  #
+  # --maxmemory 256mb: caps memory usage for development.
+  # --maxmemory-policy allkeys-lru: if memory is full, evict the
+  # least-recently-used key. Since we always write fresh prices,
+  # old prices are naturally evicted first.
+  # ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: arbitrage-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: redis-cli ping | grep -q PONG || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # TIMESCALEDB — Time-Series Database
+  # ──────────────────────────────────────────────────────────
+  # TimescaleDB is PostgreSQL with a time-series extension.
+  # It stores:
+  #   - Detected arbitrage opportunities (with lifecycle events)
+  #   - Execution simulation results
+  #   - Daily summary statistics
+  #
+  # Why TimescaleDB over plain PostgreSQL?
+  #   Hypertables automatically partition data by time. A query
+  #   for "opportunities in the last hour" scans only the relevant
+  #   partition — not the entire table with millions of rows.
+  #   Compression policies shrink older data by 90%+.
+  #
+  # The database, user, and password are configured via environment
+  # variables matching .env.example. Flyway migrations (Session 0.7)
+  # will create the actual tables on first application startup.
+  # ──────────────────────────────────────────────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: arbitrage-timescaledb
+    ports:
+      - "${TIMESCALEDB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${TIMESCALEDB_DB:-arbitrage_detector}
+      POSTGRES_USER: ${TIMESCALEDB_USER:-arbitrage}
+      POSTGRES_PASSWORD: ${TIMESCALEDB_PASSWORD:-arbitrage_dev_password}
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${TIMESCALEDB_USER:-arbitrage} -d ${TIMESCALEDB_DB:-arbitrage_detector} || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # PROMETHEUS — Metrics Collection
+  # ──────────────────────────────────────────────────────────
+  # Prometheus scrapes (pulls) metrics from our Spring Boot
+  # application's /actuator/prometheus endpoint every 5 seconds.
+  #
+  # It stores time-series data like:
+  #   exchange_messages_received_total{exchange="binance"} 45231
+  #   detection_latency_seconds{quantile="0.99"} 0.042
+  #   feed_status{exchange="kucoin"} 1
+  #
+  # This data feeds into Grafana dashboards for real-time monitoring.
+  #
+  # The scrape config is in infra/prometheus/prometheus.yml.
+  # "host.docker.internal" lets Prometheus (inside Docker) reach
+  # our Spring Boot app (running on the host machine).
+  # ──────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: arbitrage-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    # On Windows/Mac, host.docker.internal resolves to the host machine.
+    # On Linux, you need --add-host=host.docker.internal:host-gateway.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: wget --quiet --tries=1 --spider http://localhost:9090/-/healthy || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # GRAFANA — Metrics Visualisation
+  # ──────────────────────────────────────────────────────────
+  # Grafana queries Prometheus and renders real-time dashboards.
+  # At trading firms, operations teams monitor Grafana 24/7 to
+  # spot degradation before it becomes an outage.
+  #
+  # The Prometheus datasource is auto-provisioned via a YAML file
+  # (no manual setup needed on first launch). Login: admin/admin.
+  #
+  # We'll build dashboards showing:
+  #   - Messages per second per exchange
+  #   - Detection latency percentiles (p50/p95/p99)
+  #   - Feed health status
+  #   - Kafka consumer lag
+  # ──────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: arbitrage-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # Disable anonymous access — require login
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # Allow embedding in iframes (useful if dashboard-ui embeds Grafana panels)
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+# ──────────────────────────────────────────────────────────
+# NAMED VOLUMES
+# ──────────────────────────────────────────────────────────
+# Named volumes persist data across container restarts.
+# Without them, every `docker-compose down && up` would lose
+# all Kafka messages, Redis state, database data, and metrics.
+#
+# To completely wipe and start fresh:
+#   docker-compose down -v   (the -v flag removes volumes)
+# ──────────────────────────────────────────────────────────
+volumes:
+  kafka-data:
+  redis-data:
+  timescaledb-data:
+  prometheus-data:
+  grafana-data:

@@ -1,0 +1,54 @@
+# ============================================================
+# Prometheus Scrape Configuration
+# ============================================================
+# Prometheus works on a PULL model — it periodically "scrapes"
+# (sends HTTP GET requests to) configured endpoints and stores
+# the returned metrics as time-series data.
+#
+# Our Spring Boot app exposes metrics at /actuator/prometheus
+# in a format Prometheus understands (OpenMetrics/Prometheus
+# exposition format). Example output:
+#
+#   exchange_messages_received_total{exchange="binance"} 45231
+#   detection_latency_seconds{quantile="0.99"} 0.042
+#   jvm_memory_used_bytes{area="heap"} 134217728
+#
+# Scrape interval: 5 seconds. This means metrics are at most
+# 5 seconds stale. For trading systems, this is acceptable for
+# monitoring (detection itself runs in real-time, not via Prometheus).
+# ============================================================
+
+global:
+  # How often to scrape targets. 5s gives near-real-time visibility
+  # without overwhelming the application with metric requests.
+  scrape_interval: 5s
+
+  # How often to evaluate alerting rules (if we add them later).
+  evaluation_interval: 5s
+
+scrape_configs:
+
+  # ---- Prometheus self-monitoring ----
+  # Prometheus scrapes its own metrics. Useful for monitoring
+  # Prometheus itself (scrape duration, target health, storage usage).
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ---- Our Spring Boot Application ----
+  # "host.docker.internal" resolves to the host machine from inside
+  # a Docker container. This is how Prometheus (running in Docker)
+  # reaches our Spring Boot app (running on localhost:8080).
+  #
+  # The metrics_path is Spring Boot Actuator's Prometheus endpoint.
+  # Spring Boot + Micrometer automatically exposes:
+  #   - JVM metrics (heap, GC, threads)
+  #   - HTTP request metrics (count, latency)
+  #   - Custom metrics we register (exchange messages, detection latency)
+  - job_name: "arbitrage-platform"
+    metrics_path: /actuator/prometheus
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          application: "arbitrage-detector"

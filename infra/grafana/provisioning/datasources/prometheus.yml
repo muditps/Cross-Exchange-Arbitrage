@@ -1,0 +1,30 @@
+# ============================================================
+# Grafana Datasource Auto-Provisioning
+# ============================================================
+# When Grafana starts for the first time, it reads this file
+# and automatically creates the Prometheus datasource — no
+# manual configuration needed.
+#
+# Without this, you'd have to:
+#   1. Open Grafana (localhost:3000)
+#   2. Go to Settings → Data Sources → Add
+#   3. Select Prometheus
+#   4. Enter the URL
+#   5. Click Save & Test
+#
+# Auto-provisioning does all of this automatically. This is the
+# "infrastructure as code" principle — everything is declarative,
+# reproducible, and version-controlled.
+# ============================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # "prometheus" is the Docker Compose service name.
+    # Docker's internal DNS resolves it to the container's IP.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
