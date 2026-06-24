@@ -2,6 +2,7 @@ package com.arbitrage.common.model;
 
 import lombok.Builder;
 import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
 
 import java.util.Objects;
 
@@ -18,6 +19,7 @@ import java.util.Objects;
  */
 @Value
 @Builder
+@Jacksonized
 public class TradingPair {
 
     /**

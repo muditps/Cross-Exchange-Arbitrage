@@ -1,0 +1,51 @@
+# ============================================================
+# Detection Engine — Module Configuration
+# ============================================================
+# These properties are merged with dashboard-api/application.yml
+# at runtime. Tune via environment variables — no recompile needed.
+# ============================================================
+
+arbitrage:
+  detection:
+    # How old a price can be before it is excluded from spread comparisons.
+    # Stale prices cause false-positive arbitrage signals — Binance at T-200ms
+    # vs KuCoin at T-0ms may show a spread that has already closed.
+    # Default 500ms. Reduce for faster feeds, increase if connectivity is poor.
+    staleness-threshold-ms: ${DETECTION_STALENESS_THRESHOLD_MS:500}
+
+    # Minimum spread in basis points (bps) to report as an opportunity.
+    # 1 bps = 0.01%. At 10 bps minimum, a $40,000 BTC must show at least $40
+    # spread before we publish an ArbitrageOpportunity.
+    # This threshold does NOT account for fees — fee filtering happens in
+    # ArbitrageDetectionEngine using per-exchange BigDecimal fee rates.
+    min-spread-bps: ${DETECTION_MIN_SPREAD_BPS:10}
+
+    # Maximum duration (milliseconds) an opportunity may remain OPEN.
+    # Opportunities older than this are transitioned to EXPIRED by the background
+    # expiry sweep and treated as data artefacts (stale feed producing phantom spread).
+    max-opportunity-duration-ms: ${DETECTION_MAX_OPPORTUNITY_DURATION_MS:60000}
+
+    # Redis TTL for price hash keys (milliseconds).
+    # Deliberately longer than staleness-threshold-ms (10s vs 500ms):
+    # the 500ms threshold filters at comparison time; the 10s TTL is a backstop
+    # that auto-evicts keys when a connector goes silent for an extended period.
+    redis-price-ttl-ms: ${DETECTION_REDIS_PRICE_TTL_MS:10000}
+
+# ============================================================
+# Exchange Fee Configuration
+# ============================================================
+# Taker fees (market orders) are used in spread calculations.
+# Maker fees (limit orders) are available for the execution simulator.
+# Override per-exchange via environment variables — no recompile needed.
+# Typical rates shown are for standard API tier. VIP accounts may be lower.
+# ============================================================
+exchanges:
+  binance:
+    taker-fee-rate: ${EXCHANGE_BINANCE_TAKER_FEE:0.0010}
+    maker-fee-rate: ${EXCHANGE_BINANCE_MAKER_FEE:0.0002}
+  bybit:
+    taker-fee-rate: ${EXCHANGE_BYBIT_TAKER_FEE:0.0010}
+    maker-fee-rate: ${EXCHANGE_BYBIT_MAKER_FEE:0.0002}
+  kucoin:
+    taker-fee-rate: ${EXCHANGE_KUCOIN_TAKER_FEE:0.0010}
+    maker-fee-rate: ${EXCHANGE_KUCOIN_MAKER_FEE:0.0002}

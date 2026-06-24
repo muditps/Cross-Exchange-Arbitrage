@@ -1,0 +1,50 @@
+# ============================================================
+# Docker Build Context Exclusions
+# ============================================================
+# These files are NOT sent to Docker during image builds.
+# Reduces build context size and speeds up docker build.
+# ============================================================
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Node (dashboard-ui)
+node_modules
+dashboard-ui/node_modules
+dashboard-ui/dist
+
+# Build outputs (we rebuild inside Docker)
+build
+*/build
+.gradle
+
+# Documentation (not needed in production image)
+docs
+*.md
+!README.md
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Claude
+.claude
+.claudeignore
+CLAUDE.md
+
+# Misc
+logs
+*.log
+misc files

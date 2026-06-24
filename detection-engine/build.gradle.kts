@@ -16,15 +16,24 @@ plugins {
 dependencies {
     implementation(project(":common-models"))
 
+    implementation("org.springframework.boot:spring-boot-starter")
     implementation(libs.spring.boot.starter.data.redis.reactive)
     implementation(libs.spring.kafka)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.micrometer.registry.prometheus)
     implementation(libs.hdr.histogram)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.datatype.jsr310)
+
+    compileOnly(libs.lombok)
+    annotationProcessor(libs.lombok)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.kafka.test)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.kafka)
+    testImplementation("io.projectreactor:reactor-test") // StepVerifier for reactive assertions
+    testImplementation("org.springframework.boot:spring-boot-starter-validation") // Hibernate Validator for @Validated on FeeConfiguration
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {

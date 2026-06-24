@@ -1,0 +1,1 @@
+{"type":"message","topic":"/market/ticker:SHIB-USDT","subject":"trade.ticker","data":{"sequence":"1545896672400","price":"0.00002834","size":"1000000000.00000000","bestAsk":"0.00002835","bestAskSize":"3200000000.00000000","bestBid":"0.00002834","bestBidSize":"5000000000.00000000","time":1673853750400}}

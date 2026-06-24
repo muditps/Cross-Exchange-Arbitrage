@@ -17,11 +17,14 @@ dependencies {
     implementation(project(":common-models"))
 
     implementation(libs.spring.boot.starter.webflux)
+    implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.kafka)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.micrometer.registry.prometheus)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation("io.projectreactor:reactor-test")
+    testImplementation(libs.jackson.datatype.jsr310)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.wiremock)

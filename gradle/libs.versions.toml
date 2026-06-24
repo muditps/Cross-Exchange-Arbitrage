@@ -13,6 +13,7 @@ java = "21"
 
 # Kafka
 spring-kafka = "3.3.4"
+kafka-clients = "3.7.1"
 
 # Redis
 # (managed by Spring Boot BOM)
@@ -37,6 +38,9 @@ mockito = "5.15.2"
 testcontainers = "1.20.5"
 wiremock = "3.10.0"
 
+# API Docs
+springdoc = "2.8.3"
+
 # Frontend (managed by npm, listed here for reference only)
 # react = "18.x"
 # vite = "5.x"
@@ -55,6 +59,7 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 # Kafka
 spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka" }
 spring-kafka-test = { module = "org.springframework.kafka:spring-kafka-test", version.ref = "spring-kafka" }
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-clients" }
 
 # Database
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
@@ -64,6 +69,9 @@ postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" 
 # Observability
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
 hdr-histogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdr-histogram" }
+
+# API Docs
+springdoc-openapi-starter-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
 
 # JSON
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }

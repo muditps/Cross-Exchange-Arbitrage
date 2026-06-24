@@ -3,6 +3,7 @@ package com.arbitrage.common.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -40,6 +41,7 @@ import java.time.Instant;
  */
 @Value
 @Builder
+@Jacksonized
 public class NormalisedTick {
 
     /** Which exchange produced this tick. */

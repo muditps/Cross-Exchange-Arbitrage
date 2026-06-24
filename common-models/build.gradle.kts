@@ -14,6 +14,11 @@ plugins {
 }
 
 dependencies {
+    // Kafka header types (Header, Headers) — compileOnly because all consuming modules
+    // already have kafka-clients on their classpath via spring-kafka
+    compileOnly(libs.kafka.clients)
+    testImplementation(libs.kafka.clients)
+
     // Jackson annotations for JSON serialization
     api(libs.jackson.databind)
     api(libs.jackson.datatype.jsr310)

@@ -83,3 +83,9 @@ Phase-7-NSE-BSE-Extension-Plan.docx
 .env.example
 .claudeignore
 .claude/
+CHANGELOG.md
+start-server.bat
+README.md
+graphify-out/
+gradle/
+.github/

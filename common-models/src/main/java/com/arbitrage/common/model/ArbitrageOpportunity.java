@@ -3,6 +3,7 @@ package com.arbitrage.common.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +34,7 @@ import java.util.UUID;
  */
 @Value
 @Builder(toBuilder = true)
+@Jacksonized
 public class ArbitrageOpportunity {
 
     /**
@@ -188,4 +190,15 @@ public class ArbitrageOpportunity {
      */
     @JsonProperty("totalDurationMs")
     long totalDurationMs;
+
+    /**
+     * Number of ticks observed while this opportunity was tracked.
+     *
+     * <p>Starts at 1 on first detection. Incremented on each subsequent profitable
+     * tick for the same (pair, sellExchange, buyExchange) direction. Used as the
+     * denominator in the Welford online running mean for {@link #averageNetSpread}:
+     * {@code mean_n = mean_{n-1} + (x_n - mean_{n-1}) / n}.
+     */
+    @JsonProperty("updateCount")
+    long updateCount;
 }

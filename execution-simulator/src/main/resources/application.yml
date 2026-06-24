@@ -1,0 +1,87 @@
+# ============================================================
+# Execution Simulator — Module Configuration
+# ============================================================
+# Properties consumed by this module when run as part of the
+# dashboard-api application. All sensitive values are injected
+# via environment variables — no secrets in source control.
+# ============================================================
+
+arbitrage:
+  simulation:
+    # Default slippage applied per simulated execution leg.
+    # 2.00 bps = 0.02%. On a $40,000 BTC position, this is ~$8 per leg.
+    # Override to 0 for a fee-only (no-slippage) simulation baseline.
+    default-slippage-bps: ${SIMULATION_DEFAULT_SLIPPAGE_BPS:2.00}
+
+    # Rolling history window for price replay (seconds).
+    # HistoricalPriceStore (Session 4.3) keeps this many seconds of ticks.
+    # 60s covers even the slowest plausible execution window with headroom.
+    historical-window-seconds: ${SIMULATION_HISTORICAL_WINDOW_SECONDS:60}
+
+    # Serial time from opportunity detection to order dispatch (milliseconds).
+    # Represents internal processing latency before orders can be sent.
+    # Default 5ms models a realistic non-co-located participant with a simple decision algorithm.
+    detection-to-decision-ms: ${SIMULATION_DETECTION_TO_DECISION_MS:5}
+
+    # Set to false in environments without TimescaleDB (e.g. unit test contexts).
+    enabled: ${SIMULATION_ENABLED:true}
+
+    # ──────────────────────────────────────────────────────────────
+    # Per-exchange latency profiles (milliseconds, non-co-located defaults)
+    #
+    # Components: network (outbound) + exchange processing + confirmation (inbound) + jitter
+    # Total = sum of all four. ExecutionTimelineSimulator uses: max(buyLeg, sellLeg)
+    #
+    # These defaults model a realistic retail/institutional participant.
+    # Override to model co-location: e.g. SIMULATION_LATENCY_BINANCE_NETWORK_MS=1
+    # ──────────────────────────────────────────────────────────────
+    latency:
+      binance:
+        network-latency-ms: ${SIMULATION_LATENCY_BINANCE_NETWORK_MS:15}
+        exchange-processing-ms: ${SIMULATION_LATENCY_BINANCE_PROCESSING_MS:5}
+        confirmation-latency-ms: ${SIMULATION_LATENCY_BINANCE_CONFIRMATION_MS:5}
+        # Max random jitter per leg. Was 2ms (fixed constant). Now sampled uniformly
+        # in [0, jitterMs] per simulation to produce realistic latency scatter.
+        # 15ms represents real network variance for a non-co-located cloud participant.
+        jitter-ms: ${SIMULATION_LATENCY_BINANCE_JITTER_MS:15}
+      bybit:
+        network-latency-ms: ${SIMULATION_LATENCY_BYBIT_NETWORK_MS:25}
+        exchange-processing-ms: ${SIMULATION_LATENCY_BYBIT_PROCESSING_MS:8}
+        confirmation-latency-ms: ${SIMULATION_LATENCY_BYBIT_CONFIRMATION_MS:8}
+        jitter-ms: ${SIMULATION_LATENCY_BYBIT_JITTER_MS:20}
+      kucoin:
+        network-latency-ms: ${SIMULATION_LATENCY_KUCOIN_NETWORK_MS:30}
+        exchange-processing-ms: ${SIMULATION_LATENCY_KUCOIN_PROCESSING_MS:10}
+        confirmation-latency-ms: ${SIMULATION_LATENCY_KUCOIN_CONFIRMATION_MS:10}
+        jitter-ms: ${SIMULATION_LATENCY_KUCOIN_JITTER_MS:20}
+
+# ============================================================
+# Spring Data JPA (TimescaleDB via PostgreSQL driver)
+# ============================================================
+# Flyway is DISABLED in this module — all schema migrations are
+# owned by dashboard-api (V1–V4 already applied). Two Flyway
+# instances targeting the same schema would conflict.
+# ============================================================
+spring:
+  datasource:
+    url: ${TIMESCALEDB_URL:jdbc:postgresql://localhost:5432/arbitrage}
+    username: ${TIMESCALEDB_USER:arbitrage}
+    password: ${TIMESCALEDB_PASSWORD:arbitrage}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Batch inserts for simulation results — reduces round-trips when
+        # multiple opportunities close in quick succession
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+
+  flyway:
+    # Disabled: dashboard-api owns all Flyway migrations.
+    # execution-simulator uses the schema dashboard-api created.
+    enabled: false

@@ -1,0 +1,41 @@
+# ============================================================
+# Development Profile Configuration
+# ============================================================
+# Activated when SPRING_PROFILES_ACTIVE=dev (set in .env.example).
+# Overrides values from application.yml with dev-friendly settings.
+#
+# KEY CONCEPT — Profile Layering:
+# Spring loads application.yml first, then overlays application-dev.yml
+# on top. Only values specified here override the base config.
+# Everything else inherits from application.yml unchanged.
+# ============================================================
+
+spring:
+  # ---------- JPA ----------
+  # Show SQL in dev for debugging. Never in production — it floods logs
+  # and leaks query structure information.
+  jpa:
+    show-sql: true
+
+  # ---------- Flyway ----------
+  # Enabled — migrations run automatically on startup.
+  # Flyway checks which migrations have been applied and runs new ones.
+  flyway:
+    enabled: true
+
+# ---------- Logging ----------
+# DEBUG level for our code, INFO for framework code.
+# In production, our code runs at INFO and framework at WARN.
+logging:
+  level:
+    # Our application packages — verbose in dev for debugging
+    com.arbitrage: DEBUG
+    # Spring framework — INFO is enough, DEBUG is too noisy
+    org.springframework: INFO
+    # Kafka client — INFO to see connection events, DEBUG for message-level detail
+    org.apache.kafka: INFO
+    # Redis — INFO for connection events
+    io.lettuce: INFO
+    # Hibernate SQL — only if show-sql isn't enough detail
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

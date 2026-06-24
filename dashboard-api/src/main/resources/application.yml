@@ -2,10 +2,214 @@
 # Multi-Asset Cross-Exchange Arbitrage Detection Platform
 # Application Configuration
 # ============================================================
+# All values use ${ENV_VAR:default} syntax.
+# Set env vars to override defaults. See .env.example for the full list.
+# ============================================================
 
 spring:
   application:
     name: arbitrage-detector
 
+  # ---------- Redis Configuration ----------
+  # Used as the hot-path price state store for sub-millisecond cross-exchange
+  # price comparison. TTL on keys provides built-in staleness detection.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  # ---------- TimescaleDB (PostgreSQL) Configuration ----------
+  # Stores historical opportunities, simulation results, and analytics data.
+  # TimescaleDB is a PostgreSQL extension — uses standard JDBC driver.
+  datasource:
+    url: jdbc:postgresql://${TIMESCALEDB_HOST:localhost}:${TIMESCALEDB_PORT:5432}/${TIMESCALEDB_DB:arbitrage_detector}
+    username: ${TIMESCALEDB_USER:arbitrage}
+    password: ${TIMESCALEDB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+      idle-timeout: 300000
+
+  # ---------- JPA / Hibernate ----------
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ---------- Flyway Database Migrations ----------
+  # All schema changes go through Flyway migration files.
+  # Never use ddl-auto=update in production — Flyway gives version-controlled,
+  # repeatable, and auditable schema evolution.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  # ---------- Kafka Configuration ----------
+  # Message broker connecting pipeline stages:
+  # Connectors → Normaliser → Detector → Simulator
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    consumer:
+      group-id: dashboard-api-group
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        # Match the 10ms tuning applied to normalisation and detection consumers in Session 6.4.
+        # Without this, the TickBroadcaster and OpportunityBroadcaster poll at the Kafka default
+        # of 500ms, adding up to 500ms of tail latency at the WebSocket broadcast stage.
+        fetch.max.wait.ms: 10
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+# ---------- Server Configuration ----------
 server:
   port: ${SERVER_PORT:8080}
+
+# ---------- Spring Actuator ----------
+# Exposes operational endpoints for health checks and Prometheus metrics scraping.
+# /actuator/health — is the system alive and are dependencies reachable?
+# /actuator/prometheus — Micrometer metrics in Prometheus format
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+
+# ---------- SpringDoc / Swagger UI ----------
+# Swagger UI: http://localhost:8080/swagger-ui.html
+# OpenAPI JSON: http://localhost:8080/v3/api-docs
+# Note: WebSocket endpoints (/ws/ticks, /ws/opportunities) are NOT documented by SpringDoc.
+# See docs/api/WEBSOCKET_API.md for WebSocket documentation.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+# ---------- Exchange Fee Configuration ----------
+# Binds to FeeConfiguration (prefix: exchanges). Used by ArbitrageDetectionEngine.
+# Set EXCHANGE_*_TAKER_FEE in .env. Demo near-zero (0.000001) for dashboard population.
+exchanges:
+  binance:
+    taker-fee-rate: ${EXCHANGE_BINANCE_TAKER_FEE:0.000001}
+    maker-fee-rate: ${EXCHANGE_BINANCE_MAKER_FEE:0.0002}
+  bybit:
+    taker-fee-rate: ${EXCHANGE_BYBIT_TAKER_FEE:0.000001}
+    maker-fee-rate: ${EXCHANGE_BYBIT_MAKER_FEE:0.0002}
+  kucoin:
+    taker-fee-rate: ${EXCHANGE_KUCOIN_TAKER_FEE:0.000001}
+    maker-fee-rate: ${EXCHANGE_KUCOIN_MAKER_FEE:0.0002}
+
+# ---------- Arbitrage Detection Configuration ----------
+arbitrage:
+  detection:
+    staleness-threshold-ms: ${STALENESS_THRESHOLD_MS:500}
+    # min-spread-bps: minimum gross spread before publishing an opportunity (before fees).
+    # Demo: 0 (no noise filter). Production: 10 bps.
+    min-spread-bps: ${DETECTION_MIN_SPREAD_BPS:0}
+    max-opportunity-duration-ms: ${MAX_TRACKING_DURATION_MS:60000}
+    redis-price-ttl-ms: ${DETECTION_REDIS_PRICE_TTL_MS:10000}
+
+  # ---------- Execution Simulator Configuration ----------
+  # Controls the simulated trade execution pipeline (Phase 4).
+  # SimulationOrchestrator processes CLOSED opportunities and records
+  # results to TimescaleDB via SimulationResultRepository.
+  simulation:
+    # Default slippage per simulated execution leg when the price replay store is cold.
+    # 2.00 bps = 0.02%. On a $40,000 BTC position this is ~$8 per leg.
+    default-slippage-bps: ${SIMULATION_DEFAULT_SLIPPAGE_BPS:2.00}
+
+    # Rolling history window for price replay (seconds).
+    # HistoricalPriceStore retains this many seconds of normalised ticks.
+    # 60s covers any realistic execution latency (27–52ms per exchange) with room to spare.
+    historical-window-seconds: ${SIMULATION_HISTORICAL_WINDOW_SECONDS:60}
+
+    # Serial time from opportunity detection to order dispatch (milliseconds).
+    # Represents internal decision latency before orders can be sent.
+    # 5ms models a realistic non-co-located participant with a simple decision algorithm.
+    detection-to-decision-ms: ${SIMULATION_DETECTION_TO_DECISION_MS:5}
+
+    # Set to false to disable simulation without stopping the rest of the pipeline.
+    enabled: ${SIMULATION_ENABLED:true}
+
+    # Per-exchange latency profiles (milliseconds). Four components per exchange:
+    #   network-latency-ms:      outbound order travel time to exchange gateway
+    #   exchange-processing-ms:  matching engine processing (irreducible — we don't control it)
+    #   confirmation-latency-ms: inbound fill confirmation travel time
+    #   jitter-ms:               p99 variance buffer (avoids understating tail latency)
+    # Total leg latency = sum of all four.
+    # ExecutionTimelineSimulator formula: detectionToDecisionMs + max(buyLeg, sellLeg)
+    latency:
+      binance:
+        network-latency-ms: ${SIMULATION_LATENCY_BINANCE_NETWORK_MS:15}
+        exchange-processing-ms: ${SIMULATION_LATENCY_BINANCE_PROCESSING_MS:5}
+        confirmation-latency-ms: ${SIMULATION_LATENCY_BINANCE_CONFIRMATION_MS:5}
+        jitter-ms: ${SIMULATION_LATENCY_BINANCE_JITTER_MS:2}
+      bybit:
+        network-latency-ms: ${SIMULATION_LATENCY_BYBIT_NETWORK_MS:25}
+        exchange-processing-ms: ${SIMULATION_LATENCY_BYBIT_PROCESSING_MS:8}
+        confirmation-latency-ms: ${SIMULATION_LATENCY_BYBIT_CONFIRMATION_MS:8}
+        jitter-ms: ${SIMULATION_LATENCY_BYBIT_JITTER_MS:2}
+      kucoin:
+        network-latency-ms: ${SIMULATION_LATENCY_KUCOIN_NETWORK_MS:30}
+        exchange-processing-ms: ${SIMULATION_LATENCY_KUCOIN_PROCESSING_MS:10}
+        confirmation-latency-ms: ${SIMULATION_LATENCY_KUCOIN_CONFIRMATION_MS:10}
+        jitter-ms: ${SIMULATION_LATENCY_KUCOIN_JITTER_MS:2}
+
+  # ---------- Trading Pairs ----------
+  # Canonical BASE-QUOTE pairs to monitor across all enabled exchanges.
+  # Connectors subscribe to all pairs on a single WebSocket connection per exchange.
+  trading:
+    pairs:
+      - BTC-USDT
+      - ETH-USDT
+      - BNB-USDT
+
+  # ---------- Exchange Connector Configuration ----------
+  # Per-exchange WebSocket connection settings. Each connector binds to
+  # ExchangeConnectorProperties.ExchangeProperties with validation.
+  # Keys match ExchangeId enum names in lowercase.
+  exchanges:
+    connectors:
+      binance:
+        ws-endpoint: ${BINANCE_WS_ENDPOINT:wss://stream.binance.com:9443/ws}
+        taker-fee-rate: ${EXCHANGE_BINANCE_TAKER_FEE:0.0010}
+        initial-reconnect-delay: 1s
+        max-reconnect-delay: 30s
+        max-reconnect-attempts: 2147483647
+        staleness-threshold: 500ms
+        enabled: true
+      bybit:
+        ws-endpoint: ${BYBIT_WS_ENDPOINT:wss://stream.bybit.com/v5/public/spot}
+        taker-fee-rate: ${EXCHANGE_BYBIT_TAKER_FEE:0.0010}
+        initial-reconnect-delay: 1s
+        max-reconnect-delay: 30s
+        max-reconnect-attempts: 2147483647
+        staleness-threshold: 500ms
+        enabled: true
+      kucoin:
+        ws-endpoint: ${KUCOIN_WS_ENDPOINT:wss://ws-api-spot.kucoin.com}
+        taker-fee-rate: ${EXCHANGE_KUCOIN_TAKER_FEE:0.0010}
+        initial-reconnect-delay: 1s
+        max-reconnect-delay: 30s
+        max-reconnect-attempts: 2147483647
+        staleness-threshold: 500ms
+        enabled: true

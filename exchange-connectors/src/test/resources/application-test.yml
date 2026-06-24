@@ -1,0 +1,30 @@
+arbitrage:
+  trading:
+    pairs:
+      - BTC-USDT
+  exchanges:
+    connectors:
+      binance:
+        ws-endpoint: wss://stream.binance.com:9443/ws
+        taker-fee-rate: 0.0010
+        initial-reconnect-delay: 1s
+        max-reconnect-delay: 30s
+        max-reconnect-attempts: 10
+        staleness-threshold: 500ms
+        enabled: true
+      bybit:
+        ws-endpoint: wss://stream.bybit.com/v5/public/spot
+        taker-fee-rate: 0.0006
+        initial-reconnect-delay: 2s
+        max-reconnect-delay: 60s
+        max-reconnect-attempts: 5
+        staleness-threshold: 750ms
+        enabled: false
+      kucoin:
+        ws-endpoint: https://api.kucoin.com/api/v1/bullet-public
+        taker-fee-rate: 0.0010
+        initial-reconnect-delay: 2s
+        max-reconnect-delay: 60s
+        max-reconnect-attempts: 5
+        staleness-threshold: 750ms
+        enabled: false

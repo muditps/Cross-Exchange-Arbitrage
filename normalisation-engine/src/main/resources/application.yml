@@ -1,0 +1,43 @@
+# ============================================================
+# Normalisation Engine — Module Configuration
+# ============================================================
+# This module is a library — it does not boot standalone.
+# These properties are merged with dashboard-api's application.yml
+# when the full application starts.
+# ============================================================
+
+# Normalisation Engine settings — overridable via environment variables
+arbitrage:
+  normalisation:
+    # Maximum age (ms) of a raw tick before it is dropped WITHOUT normalising.
+    # Stale backlog messages (from Kafka lag after restarts or load tests) are
+    # dropped in ~0.01ms (read+check+ack) instead of ~1ms (transform+publish),
+    # clearing a 100k-message backlog in ~1.4s instead of ~143s.
+    # Set higher than detection.staleness-threshold-ms to allow for Kafka transit.
+    staleness-threshold-ms: ${NORMALISATION_STALENESS_THRESHOLD_MS:2000}
+
+    # Consumer concurrency — one thread per exchange topic.
+    # Matches the number of raw-ticks topics (binance, bybit, kucoin).
+    consumer-concurrency: 3
+
+    feed-health:
+      # Age of the most recent valid normalised tick before the feed is considered stale.
+      # At 1000 ticks/sec per exchange, 5 seconds of silence is a strong signal of a problem.
+      stale-threshold-ms: ${FEED_HEALTH_STALE_THRESHOLD_MS:5000}
+
+      # Age before the feed is considered fully disconnected (not just stale).
+      # 30 seconds of silence strongly indicates the WebSocket connector has dropped.
+      disconnected-threshold-ms: ${FEED_HEALTH_DISCONNECTED_THRESHOLD_MS:30000}
+
+      # How often the health check scheduler runs.
+      check-interval-ms: ${FEED_HEALTH_CHECK_INTERVAL_MS:1000}
+
+    clock-skew:
+      # Deviation from rolling mean (ms) that triggers a WARN log.
+      # 500ms is a significant NTP jump for exchange server clocks.
+      jump-threshold-ms: ${CLOCK_SKEW_JUMP_THRESHOLD_MS:500}
+
+      # EWMA alpha — smoothing factor for rolling mean offset.
+      # 0.1 = slow adaptation (filters transient spikes, takes ~50 ticks to converge).
+      # 0.5 = fast adaptation (more reactive to changes, less filtering).
+      ewma-alpha: ${CLOCK_SKEW_EWMA_ALPHA:0.1}

@@ -1,0 +1,1 @@
+{"type":"message","topic":"/market/ticker:ETH-USDT","subject":"trade.ticker","data":{"sequence":"1545896670200","price":"3456.89","size":"0.500","bestAsk":"3456.99000000","bestAskSize":"8.45600000","bestBid":"3456.78000000","bestBidSize":"15.67800000","time":1673853748200}}
