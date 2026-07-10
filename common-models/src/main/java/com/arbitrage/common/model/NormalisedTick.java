@@ -96,4 +96,19 @@ public class NormalisedTick {
      */
     @JsonProperty("processedTimestamp")
     long processedTimestamp;
+
+    /**
+     * Indicates whether this tick contains a full bid/ask spread or only the last traded price.
+     *
+     * <p>{@link DataQuality#FULL_BOOK} — best bid and best ask are both present; tick is usable
+     * for arbitrage spread calculation.</p>
+     *
+     * <p>{@link DataQuality#LTP_ONLY} — only the last traded price is available (e.g., Angel One
+     * mode-1 subscription). The detection engine must skip these ticks for spread comparison.</p>
+     *
+     * <p>All crypto connectors (Binance, Bybit, KuCoin) always produce {@code FULL_BOOK}.
+     * NSE connector uses mode-2 (Quote) by default, also producing {@code FULL_BOOK}.</p>
+     */
+    @JsonProperty("dataQuality")
+    DataQuality dataQuality;
 }

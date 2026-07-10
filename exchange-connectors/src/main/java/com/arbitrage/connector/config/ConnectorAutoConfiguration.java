@@ -2,6 +2,7 @@ package com.arbitrage.connector.config;
 
 import com.arbitrage.connector.ExchangeConnectorProperties;
 import com.arbitrage.connector.TradingPairsProperties;
+import com.arbitrage.connector.nse.NseConnectorProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,6 +30,6 @@ import org.springframework.context.annotation.Configuration;
  * @see TradingPairsProperties for the list of trading pairs to monitor
  */
 @Configuration
-@EnableConfigurationProperties({ExchangeConnectorProperties.class, TradingPairsProperties.class})
+@EnableConfigurationProperties({ExchangeConnectorProperties.class, TradingPairsProperties.class, NseConnectorProperties.class})
 public class ConnectorAutoConfiguration {
 }

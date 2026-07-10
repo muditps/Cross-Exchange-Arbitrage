@@ -1,0 +1,9 @@
+{
+  "type": "ltp_data",
+  "token": "2885",
+  "sequence_number": 123456790,
+  "exchange_timestamp": 1688000001000,
+  "last_traded_price": 245000,
+  "subscription_mode": 1,
+  "exchange_type": 1
+}

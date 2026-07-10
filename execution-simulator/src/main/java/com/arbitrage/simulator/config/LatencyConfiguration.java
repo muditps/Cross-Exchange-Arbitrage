@@ -56,6 +56,21 @@ public class LatencyConfiguration {
     private ExchangeLatencyConfig kucoin = new ExchangeLatencyConfig(30, 10, 10, 2);
 
     /**
+     * NSE latency profile (via Angel One SmartAPI, non-co-located).
+     * Network latency is lower than crypto exchanges (Mumbai data centre proximity).
+     * NSE matching engine is one of the fastest in Asia (~0.1ms internal, but retail
+     * access via broker adds ~3ms processing). Defaults are conservative estimates.
+     */
+    @Valid
+    @NotNull
+    private ExchangeLatencyConfig nse = new ExchangeLatencyConfig(10, 3, 3, 1);
+
+    /** BSE latency profile — similar to NSE (same Mumbai geography, same broker API). */
+    @Valid
+    @NotNull
+    private ExchangeLatencyConfig bse = new ExchangeLatencyConfig(10, 3, 3, 1);
+
+    /**
      * Returns an immutable {@link ExchangeLatencyProfile} for the given exchange.
      *
      * <p>The profile is constructed from the current configuration values each call.
@@ -70,6 +85,8 @@ public class LatencyConfiguration {
             case BINANCE -> binance;
             case BYBIT   -> bybit;
             case KUCOIN  -> kucoin;
+            case NSE     -> nse;
+            case BSE     -> bse;
         };
         return ExchangeLatencyProfile.builder()
                 .exchangeId(exchangeId)

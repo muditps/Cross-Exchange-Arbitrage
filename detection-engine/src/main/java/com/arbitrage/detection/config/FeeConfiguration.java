@@ -53,6 +53,22 @@ public class FeeConfiguration {
     private ExchangeFeeConfig kucoin = new ExchangeFeeConfig();
 
     /**
+     * NSE fee placeholder. Actual multi-component Indian equity fee model
+     * (STT + exchange charges + GST + SEBI levy + stamp duty + brokerage ~0.20% total)
+     * is implemented in IndianEquityFeeCalculator (Phase 7C.1).
+     */
+    @Valid
+    @NotNull
+    private ExchangeFeeConfig nse = new ExchangeFeeConfig(new java.math.BigDecimal("0.0020"),
+            new java.math.BigDecimal("0.0020"));
+
+    /** BSE fee placeholder — same structure as NSE. Full model in Phase 7C.1. */
+    @Valid
+    @NotNull
+    private ExchangeFeeConfig bse = new ExchangeFeeConfig(new java.math.BigDecimal("0.0020"),
+            new java.math.BigDecimal("0.0020"));
+
+    /**
      * Returns the configured taker fee rate for the given exchange.
      *
      * <p>Taker fees apply when placing market orders (crossing the spread). Our arbitrage
@@ -68,6 +84,8 @@ public class FeeConfiguration {
             case BINANCE -> binance.getTakerFeeRate();
             case BYBIT   -> bybit.getTakerFeeRate();
             case KUCOIN  -> kucoin.getTakerFeeRate();
+            case NSE     -> nse.getTakerFeeRate();
+            case BSE     -> bse.getTakerFeeRate();
         };
     }
 
@@ -87,6 +105,8 @@ public class FeeConfiguration {
             case BINANCE -> binance.getMakerFeeRate();
             case BYBIT   -> bybit.getMakerFeeRate();
             case KUCOIN  -> kucoin.getMakerFeeRate();
+            case NSE     -> nse.getMakerFeeRate();
+            case BSE     -> bse.getMakerFeeRate();
         };
     }
 
@@ -119,5 +139,12 @@ public class FeeConfiguration {
         @NotNull
         @DecimalMin(value = "0.0", inclusive = false)
         private BigDecimal makerFeeRate = new BigDecimal("0.0002");
+
+        public ExchangeFeeConfig() {}
+
+        public ExchangeFeeConfig(BigDecimal takerFeeRate, BigDecimal makerFeeRate) {
+            this.takerFeeRate = takerFeeRate;
+            this.makerFeeRate = makerFeeRate;
+        }
     }
 }

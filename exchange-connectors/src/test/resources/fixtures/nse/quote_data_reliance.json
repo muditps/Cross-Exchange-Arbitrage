@@ -1,0 +1,30 @@
+{
+  "type": "quote_data",
+  "token": "2885",
+  "sequence_number": 123456789,
+  "exchange_timestamp": 1688000000000,
+  "last_traded_price": 245000,
+  "subscription_mode": 2,
+  "exchange_type": 1,
+  "best_5_buy_data": [
+    { "flag": 0, "quantity": 100, "price": 244900, "no_of_orders": 5 },
+    { "flag": 0, "quantity": 250, "price": 244800, "no_of_orders": 12 },
+    { "flag": 0, "quantity": 400, "price": 244700, "no_of_orders": 8 },
+    { "flag": 0, "quantity": 600, "price": 244600, "no_of_orders": 20 },
+    { "flag": 0, "quantity": 800, "price": 244500, "no_of_orders": 15 }
+  ],
+  "best_5_sell_data": [
+    { "flag": 0, "quantity": 200, "price": 245100, "no_of_orders": 3 },
+    { "flag": 0, "quantity": 400, "price": 245200, "no_of_orders": 7 },
+    { "flag": 0, "quantity": 300, "price": 245300, "no_of_orders": 11 },
+    { "flag": 0, "quantity": 500, "price": 245400, "no_of_orders": 9 },
+    { "flag": 0, "quantity": 700, "price": 245500, "no_of_orders": 22 }
+  ],
+  "volume_trade_for_the_day": 1234567,
+  "total_buy_quantity": 50000,
+  "total_sell_quantity": 60000,
+  "open_price_of_the_day": 244000,
+  "high_price_of_the_day": 246500,
+  "low_price_of_the_day": 243000,
+  "closed_price": 243500
+}

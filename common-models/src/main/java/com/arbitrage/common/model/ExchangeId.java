@@ -16,7 +16,23 @@ public enum ExchangeId {
 
     BINANCE("Binance", new BigDecimal("0.0010")),
     BYBIT("Bybit", new BigDecimal("0.0010")),
-    KUCOIN("KuCoin", new BigDecimal("0.0010"));
+    KUCOIN("KuCoin", new BigDecimal("0.0010")),
+
+    /**
+     * National Stock Exchange of India (cash market segment).
+     * Fee is a placeholder (~0.20% total round-trip approximation).
+     * The real multi-component model (STT + exchange charges + GST + SEBI levy +
+     * stamp duty + brokerage) is implemented in IndianEquityFeeCalculator (Phase 7C.1).
+     * Data source: Angel One SmartAPI (requires credentials — disabled by default).
+     */
+    NSE("NSE", new BigDecimal("0.0020")),
+
+    /**
+     * Bombay Stock Exchange of India (cash market segment).
+     * Shares the same Angel One SmartAPI feed as NSE; exchange type differs in subscription.
+     * Fee placeholder — same rationale as {@link #NSE}.
+     */
+    BSE("BSE", new BigDecimal("0.0020"));
 
     private final String displayName;
     private final BigDecimal defaultTakerFeeRate;

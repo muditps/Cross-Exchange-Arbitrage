@@ -1,5 +1,6 @@
 package com.arbitrage.connector.kucoin;
 
+import com.arbitrage.common.model.DataQuality;
 import com.arbitrage.common.model.ExchangeId;
 import com.arbitrage.common.model.NormalisedTick;
 import com.arbitrage.common.model.TradingPair;
@@ -231,6 +232,7 @@ public class KuCoinMessageParser {
                 .exchangeTimestamp(exchangeTimestamp)   // Server time — NOT Instant.now()
                 .receivedTimestamp(receivedNanos)        // T0 — captured by the connector
                 .processedTimestamp(processedNanos)      // T1 — after parsing complete
+                .dataQuality(DataQuality.FULL_BOOK)
                 .build();
 
         return Optional.of(tick);

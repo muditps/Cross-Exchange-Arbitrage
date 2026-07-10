@@ -117,6 +117,15 @@ exchanges:
   kucoin:
     taker-fee-rate: ${EXCHANGE_KUCOIN_TAKER_FEE:0.000001}
     maker-fee-rate: ${EXCHANGE_KUCOIN_MAKER_FEE:0.0002}
+  # Placeholder fee for NSE/BSE. Actual multi-component Indian equity fee model
+  # (STT + exchange charges + GST + SEBI levy + stamp duty + brokerage ~0.20% total)
+  # is implemented in IndianEquityFeeCalculator (Phase 7C.1).
+  nse:
+    taker-fee-rate: ${EXCHANGE_NSE_TAKER_FEE:0.0020}
+    maker-fee-rate: ${EXCHANGE_NSE_MAKER_FEE:0.0020}
+  bse:
+    taker-fee-rate: ${EXCHANGE_BSE_TAKER_FEE:0.0020}
+    maker-fee-rate: ${EXCHANGE_BSE_MAKER_FEE:0.0020}
 
 # ---------- Arbitrage Detection Configuration ----------
 arbitrage:
@@ -213,3 +222,32 @@ arbitrage:
         max-reconnect-attempts: 2147483647
         staleness-threshold: 500ms
         enabled: true
+      # NSE connector — requires Angel One SmartAPI credentials.
+      # Set NSE_ENABLED=true and populate NSE_* env vars to activate.
+      # Staleness threshold is 60s (vs 500ms for crypto): NSE ticks arrive only during
+      # market hours (09:15–15:30 IST) and have naturally lower frequency than crypto.
+      nse:
+        ws-endpoint: ${NSE_WS_ENDPOINT:wss://smartapisocket.angelone.in/smart-stream}
+        taker-fee-rate: ${EXCHANGE_NSE_TAKER_FEE:0.0020}
+        initial-reconnect-delay: 5s
+        max-reconnect-delay: 60s
+        max-reconnect-attempts: 2147483647
+        staleness-threshold: 60s
+        enabled: ${NSE_ENABLED:false}
+
+  # ---------- NSE-Specific Configuration ----------
+  # Auth credentials and instrument token mapping for Angel One SmartAPI.
+  # All sensitive fields must be provided via environment variables — never hardcoded.
+  # Instrument tokens are stable NSE instrument identifiers used by Angel One's WebSocket.
+  # Source: https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json
+  nse:
+    api-key: ${NSE_API_KEY:}
+    client-code: ${NSE_CLIENT_CODE:}
+    mpin: ${NSE_MPIN:}
+    totp-secret: ${NSE_TOTP_SECRET:}
+    login-url: https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword
+    heartbeat-interval-seconds: 30
+    instruments:
+      RELIANCE-INR: "2885"    # Reliance Industries Ltd
+      TCS-INR: "11536"        # Tata Consultancy Services Ltd
+      INFY-INR: "1594"        # Infosys Ltd
